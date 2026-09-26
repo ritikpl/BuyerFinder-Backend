@@ -37,7 +37,7 @@ export const sendEmail = async ({
       },
       body: JSON.stringify({
         from: "BuyerFinder <onboarding@resend.dev>",
-        to: [to],
+        to: [process.env.RESEND_TEST_TO || to],
         subject,
         text: message,
       }),
