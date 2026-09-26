@@ -1,17 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import nodemailer from "nodemailer";
-
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-});
+const RESEND_API_URL = "https://api.resend.com/emails";
 
 export const sendEmail = async ({
   to,
@@ -30,44 +20,54 @@ export const sendEmail = async ({
     throw new Error("Email message is required");
   }
 
-  if (!process.env.GMAIL_USER) {
-    throw new Error(
-      "GMAIL_USER is missing in .env"
-    );
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY is missing");
   }
 
-  if (!process.env.GMAIL_APP_PASSWORD) {
-    throw new Error(
-      "GMAIL_APP_PASSWORD is missing in .env"
-    );
+  if (!process.env.GMAIL_USER) {
+    throw new Error("GMAIL_USER is missing");
   }
 
   try {
-    const info = await transporter.sendMail({
-      from: {
-        name:
-          process.env.EMAIL_FROM_NAME ||
-          "BuyerFinder",
-        address: process.env.GMAIL_USER,
+    const response = await fetch(RESEND_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
       },
-      to,
-      subject,
-      text: message,
+      body: JSON.stringify({
+        from: "BuyerFinder <onboarding@resend.dev>",
+        to: [to],
+        subject,
+        text: message,
+      }),
     });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Resend API error:", data);
+
+      throw new Error(
+        data?.message ||
+          data?.error?.message ||
+          "Failed to send email"
+      );
+    }
 
     console.log(
       "Email sent successfully:",
-      info.messageId
+      data.id
     );
 
     return {
       success: true,
-      messageId: info.messageId,
-      source: "Gmail SMTP",
+      messageId: data.id,
+      source: "Resend API",
     };
   } catch (error) {
     console.error(
-      "Gmail SMTP error:",
+      "Resend email error:",
       error.message
     );
 
@@ -77,7 +77,4 @@ export const sendEmail = async ({
     );
   }
 };
-
-
-
 
